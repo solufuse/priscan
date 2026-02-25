@@ -52,26 +52,18 @@ async def fetch_from_alpha_vantage(symbol: str):
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
-        data = response.json()
-        # Alpha Vantage sends a "Note" when the API limit is hit.
-        if "Note" in data or "Error Message" in data:
-            # This is considered a failure, so we can try the next provider.
-            raise ValueError(data.get("Note") or data.get("Error Message"))
-        return data
-    except (requests.exceptions.RequestException, ValueError, KeyError) as e:
-        print(f"Alpha Vantage failed: {e}")
+        return response.json()
+    except (requests.exceptions.RequestException, KeyError) as e:
+        print(f"Alpha Vantage request failed: {e}")
         return None
 
 async def fetch_from_yfinance(symbol: str):
     """Fetches stock data from Yahoo Finance."""
     try:
         ticker = yf.Ticker(symbol)
-        # Get historical data for a reasonable period
         hist = ticker.history(period="5y") 
         if hist.empty:
-            raise ValueError("No data found for symbol")
-        
-        # Transform the data to the expected format
+            raise ValueError("No data found for symbol in yfinance")
         return transform_yfinance_to_alphavantage(hist)
     except Exception as e:
         print(f"Yahoo Finance failed: {e}")
@@ -87,18 +79,22 @@ async def get_stock_data(symbol: str):
     """
     # 1. Try Alpha Vantage
     data = await fetch_from_alpha_vantage(symbol)
-    if data:
+    
+    # Robust check: Ensure "Time Series (Daily)" key exists and its value is not None/empty.
+    if data and data.get("Time Series (Daily)"):
         print("Fetched data from Alpha Vantage")
         return data
 
+    print("Alpha Vantage failed or returned invalid data, falling back to Yahoo Finance.")
+
     # 2. Fallback to Yahoo Finance
     data = await fetch_from_yfinance(symbol)
-    if data:
+    if data and data.get("Time Series (Daily)"):
         print("Fetched data from Yahoo Finance")
         return data
         
     # If all providers fail
-    raise HTTPException(status_code=500, detail="All data providers failed to return data for the symbol.")
+    raise HTTPException(status_code=500, detail=f"All data providers failed for symbol {symbol}.")
 
 
 # --- Static File Serving ---
