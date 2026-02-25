@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 import os
 
 from .config import settings
+from .routers import dashboard
 
 app = FastAPI()
 
@@ -19,6 +20,9 @@ app.add_middleware(
 )
 
 # --- API Endpoints ---
+# Include routers from other files
+app.include_router(dashboard.router)
+
 # API routes MUST be declared before the static file serving routes.
 @app.get("/api/stocks/{symbol}")
 def get_stock_data(symbol: str):
