@@ -4,13 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+import yfinance as yf
+import pandas as pd
 
 from .config import settings
 from .routers import dashboard
 
 app = FastAPI()
 
-# CORS must be added before any routes.
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], 
@@ -19,13 +21,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- API Endpoints ---
-# Include routers from other files
-app.include_router(dashboard.router)
+# --- Data Transformation ---
 
-# API routes MUST be declared before the static file serving routes.
-@app.get("/api/stocks/{symbol}")
-def get_stock_data(symbol: str):
+def transform_yfinance_to_alphavantage(df: pd.DataFrame) -> dict:
+    """
+    Transforms a yfinance DataFrame to the Alpha Vantage TIME_SERIES_DAILY format.
+    """
+    time_series_daily = {}
+    for index, row in df.iterrows():
+        date_str = index.strftime('%Y-%m-%d')
+        time_series_daily[date_str] = {
+            "1. open": str(row['Open']),
+            "2. high": str(row['High']),
+            "3. low": str(row['Low']),
+            "4. close": str(row['Close']),
+            "5. volume": str(row['Volume'])
+        }
+    return {"Time Series (Daily)": time_series_daily}
+
+# --- API Fetchers ---
+
+async def fetch_from_alpha_vantage(symbol: str):
+    """Fetches stock data from Alpha Vantage."""
     url = "https://www.alphavantage.co/query"
     params = {
         "function": "TIME_SERIES_DAILY",
@@ -34,26 +51,60 @@ def get_stock_data(symbol: str):
     }
     try:
         response = requests.get(url, params=params)
-        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+        response.raise_for_status()
         data = response.json()
-        if "Error Message" in data or "Note" in data:
-            error_message = data.get("Error Message", data.get("Note", f"Could not find data for symbol: {symbol}"))
-            raise HTTPException(status_code=404, detail=error_message)
+        # Alpha Vantage sends a "Note" when the API limit is hit.
+        if "Note" in data or "Error Message" in data:
+            # This is considered a failure, so we can try the next provider.
+            raise ValueError(data.get("Note") or data.get("Error Message"))
         return data
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching data from Alpha Vantage: {e}")
+    except (requests.exceptions.RequestException, ValueError, KeyError) as e:
+        print(f"Alpha Vantage failed: {e}")
+        return None
+
+async def fetch_from_yfinance(symbol: str):
+    """Fetches stock data from Yahoo Finance."""
+    try:
+        ticker = yf.Ticker(symbol)
+        # Get historical data for a reasonable period
+        hist = ticker.history(period="5y") 
+        if hist.empty:
+            raise ValueError("No data found for symbol")
+        
+        # Transform the data to the expected format
+        return transform_yfinance_to_alphavantage(hist)
     except Exception as e:
-        # Catch any other potential errors, e.g., if response is not JSON
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
+        print(f"Yahoo Finance failed: {e}")
+        return None
+
+# --- API Endpoint ---
+app.include_router(dashboard.router)
+
+@app.get("/api/stocks/{symbol}")
+async def get_stock_data(symbol: str):
+    """
+    Tries to fetch stock data from multiple providers in a fallback sequence.
+    """
+    # 1. Try Alpha Vantage
+    data = await fetch_from_alpha_vantage(symbol)
+    if data:
+        print("Fetched data from Alpha Vantage")
+        return data
+
+    # 2. Fallback to Yahoo Finance
+    data = await fetch_from_yfinance(symbol)
+    if data:
+        print("Fetched data from Yahoo Finance")
+        return data
+        
+    # If all providers fail
+    raise HTTPException(status_code=500, detail="All data providers failed to return data for the symbol.")
+
 
 # --- Static File Serving ---
-# This must come AFTER all API routes to act as a fallback.
 if os.path.exists("frontend/dist"):
-    # Mount the 'assets' directory which contains JS, CSS, etc.
     app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
 
-    # A "catch-all" route to serve index.html for any path not matched above.
-    # This is crucial for client-side routing in SPAs like React.
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         return FileResponse("frontend/dist/index.html")
