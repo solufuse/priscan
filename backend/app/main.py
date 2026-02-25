@@ -111,8 +111,8 @@ class SPAStaticFiles(StaticFiles):
             else:
                 raise ex
 
-# This should be the last mounting operation. The path is relative to the backend folder.
-frontend_dist_path = "../frontend/dist"
+# This path is relative to the WORKDIR defined in the Dockerfile
+frontend_dist_path = "frontend/dist"
 if os.path.exists(frontend_dist_path):
     print(f"Serving frontend from: {frontend_dist_path}")
     app.mount("/", SPAStaticFiles(directory=frontend_dist_path), name="spa")
