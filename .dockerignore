@@ -1,0 +1,12 @@
+.git
+.gitignore
+.dockerignore
+
+# Frontend specific
+frontend/node_modules
+frontend/dist
+
+# Backend specific
+backend/__pycache__
+backend/.venv
+backend/.env

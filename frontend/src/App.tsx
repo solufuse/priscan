@@ -13,7 +13,7 @@ function App() {
     const fetchData = async (ticker: string) => {
         setError(null);
         try {
-            const response = await fetch(`http://localhost:8000/api/stocks/${ticker}`);
+            const response = await fetch(`/api/stocks/${ticker}`); // Use relative URL for production
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || 'Failed to fetch stock data');
@@ -22,7 +22,8 @@ function App() {
             const timeSeries = data["Time Series (Daily)"];
 
             if (!timeSeries) {
-                throw new Error('Invalid data format from API. Check the symbol.');
+                const errorMessage = data["Note"] || 'Invalid data format from API. Check the symbol or API key limit.';
+                throw new Error(errorMessage);
             }
 
             const chartData: CandlestickData[] = Object.keys(timeSeries).map(date => ({
@@ -61,7 +62,7 @@ function App() {
             candlestickSeriesRef.current = chartRef.current.addCandlestickSeries();
         }
 
-        fetchData(symbol); // Fetch initial data for AAPL
+        fetchData(symbol); // Fetch initial data
 
         const handleResize = () => {
             if (chartRef.current && chartContainerRef.current) {
@@ -78,6 +79,7 @@ function App() {
                 chartRef.current = null;
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run only once on mount
 
     const handleSymbolChange = (e: React.ChangeEvent<HTMLInputElement>) => {

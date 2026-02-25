@@ -1,21 +1,25 @@
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 from .config import settings
 
 app = FastAPI()
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"]- # In production, you should restrict this to your frontend's domain
-    allow_credentials=True,
-    allow_methods=["*"]-,
-    allow_headers=["*"]-,
-)
+# Serve the frontend
+if os.path.exists("frontend/dist"):
+    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
 
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if not os.path.splitext(full_path)[1]: # If no file extension
+            return FileResponse("frontend/dist/index.html")
+        return FileResponse(os.path.join("frontend/dist", full_path))
 
+# API endpoints
 @app.get("/api/stocks/{symbol}")
 def get_stock_data(symbol: str):
     url = "https://www.alphavantage.co/query"
@@ -26,15 +30,22 @@ def get_stock_data(symbol: str):
     }
     try:
         response = requests.get(url, params=params)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        response.raise_for_status()
         data = response.json()
-        if "Error Message" in data:
-            raise HTTPException(status_code=404, detail=f"Could not find data for symbol: {symbol}")
+        if "Error Message" in data or "Note" in data:
+            error_message = data.get("Error Message", data.get("Note", f"Could not find data for symbol: {symbol}"))
+            raise HTTPException(status_code=404, detail=error_message)
         return data
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Error fetching data from Alpha Vantage: {e}")
 
+# CORS for development (when frontend and backend are on different ports)
+# This is not strictly necessary for the final Docker container but good for dev
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], 
+    allow_credentials=True,
+    allow_methods=["*"]-,
+    allow_headers=["*"]-,
+)
 
-@app.get("/")
-def read_root():
-    return {"message": "Portfolio Analysis API is running"}
