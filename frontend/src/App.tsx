@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData } from 'lightweight-charts';
+// Correctly import types with the `type` keyword
+import { createChart, type IChartApi, type ISeriesApi, type CandlestickData } from 'lightweight-charts';
 import './App.css';
 
 function App() {
@@ -13,14 +14,16 @@ function App() {
     const fetchData = async (ticker: string) => {
         setError(null);
         try {
-            const response = await fetch(`/api/stocks/${ticker}`); // Use relative URL for production
+            // Use a relative URL that can be proxied by the dev server or served by the backend in production
+            const response = await fetch(`/api/stocks/${ticker}`);
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || 'Failed to fetch stock data');
             }
             const data = await response.json();
-            const timeSeries = data["Time Series (Daily)"];
 
+            // Handle API notes and error messages from Alpha Vantage
+            const timeSeries = data["Time Series (Daily)"];
             if (!timeSeries) {
                 const errorMessage = data["Note"] || 'Invalid data format from API. Check the symbol or API key limit.';
                 throw new Error(errorMessage);
