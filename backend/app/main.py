@@ -111,9 +111,11 @@ class SPAStaticFiles(StaticFiles):
             else:
                 raise ex
 
-# This should be the last mounting operation
-if os.path.exists("frontend/dist"):
-    app.mount("/", SPAStaticFiles(directory="frontend/dist"), name="spa")
+# This should be the last mounting operation. The path is relative to the backend folder.
+frontend_dist_path = "../frontend/dist"
+if os.path.exists(frontend_dist_path):
+    print(f"Serving frontend from: {frontend_dist_path}")
+    app.mount("/", SPAStaticFiles(directory=frontend_dist_path), name="spa")
 else:
-    print("Frontend build directory 'frontend/dist' not found.")
+    print(f"[ERROR] Frontend build directory not found at: {frontend_dist_path}. Current dir: {os.getcwd()}")
 
