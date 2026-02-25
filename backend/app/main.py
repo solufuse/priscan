@@ -97,10 +97,16 @@ async def get_stock_data(symbol: str):
     raise HTTPException(status_code=500, detail=f"All data providers failed for symbol {symbol}.")
 
 
-# --- Static File Serving ---
-if os.path.exists("frontend/dist"):
-    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+# --- Static File Serving for SPA ---
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as ex:
+            if ex.status_code == 404:
+                return await super().get_response("index.html", scope)
+            else:
+                raise ex
 
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        return FileResponse("frontend/dist/index.html")
+if os.path.exists("frontend/dist"):
+    app.mount("/", SPAStaticFiles(directory="frontend/dist"), name="spa")
