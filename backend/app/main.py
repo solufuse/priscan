@@ -69,8 +69,8 @@ async def fetch_from_yfinance(symbol: str):
         print(f"Yahoo Finance failed: {e}")
         return None
 
-# --- API Endpoint ---
-app.include_router(dashboard.router)
+# --- API Endpoints (all prefixed with /api) ---
+app.include_router(dashboard.router) # Has prefix /api/dashboard
 
 @app.get("/api/stocks/{symbol}")
 async def get_stock_data(symbol: str):
@@ -97,16 +97,22 @@ async def get_stock_data(symbol: str):
     raise HTTPException(status_code=500, detail=f"All data providers failed for symbol {symbol}.")
 
 
-# --- Static File Serving for SPA ---
+# --- Static File Serving for SPA (mount this LAST) ---
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
+            # Try to get the file from the static directory
             return await super().get_response(path, scope)
         except HTTPException as ex:
+            # If the file is not found, serve index.html
             if ex.status_code == 404:
                 return await super().get_response("index.html", scope)
             else:
                 raise ex
 
+# This should be the last mounting operation
 if os.path.exists("frontend/dist"):
     app.mount("/", SPAStaticFiles(directory="frontend/dist"), name="spa")
+else:
+    print("Frontend build directory 'frontend/dist' not found.")
+
