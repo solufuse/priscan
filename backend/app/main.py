@@ -15,9 +15,18 @@ if os.path.exists("frontend/dist"):
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        if not os.path.splitext(full_path)[1]: # If no file extension
+        # Serve index.html for paths without a file extension (client-side routing)
+        if not os.path.splitext(full_path)[1] and os.path.exists("frontend/dist/index.html"):
             return FileResponse("frontend/dist/index.html")
-        return FileResponse(os.path.join("frontend/dist", full_path))
+        # Serve the requested file if it exists
+        file_path = os.path.join("frontend/dist", full_path)
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+        # Fallback to index.html for any other case (like a 404)
+        if os.path.exists("frontend/dist/index.html"):
+            return FileResponse("frontend/dist/index.html")
+        # If even index.html doesn't exist, something is wrong with the build
+        raise HTTPException(status_code=500, detail="Frontend not built or found.")
 
 # API endpoints
 @app.get("/api/stocks/{symbol}")
@@ -45,7 +54,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], 
     allow_credentials=True,
-    allow_methods=["*"]-,
-    allow_headers=["*"]-,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
