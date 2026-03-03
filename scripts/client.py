@@ -2,7 +2,7 @@ import asyncio
 from fastmcp import Client
 
 async def main():
-    client = Client("https://price.solufuse.com/mcp")
+    client = Client("https://price.solufuse.com/mcp", transport="http")
     async with client:
         result = await client.call_tool(
             "simulate_binary_contract",
