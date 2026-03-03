@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 80
 
 # Run the FastMCP server
-CMD ["python", "app/main.py"]
+CMD ["python", "-m", "app.main"]
