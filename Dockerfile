@@ -1,27 +1,20 @@
-# Stage 1: Build the frontend
-FROM node:20-slim as frontend-builder
-WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm install
-COPY frontend/ . 
-RUN npm run build
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
-# Stage 2: Build the backend
-FROM python:3.11-slim as backend-builder
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy built frontend from the previous stage
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+# Copy the dependencies file to the working directory
+COPY requirements.txt .
 
-# Install backend dependencies
-COPY backend/requirements.txt .
+# Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend application code
-COPY backend/ . 
+# Copy the rest of the application code
+COPY . .
 
-# Expose the port the app runs on
-EXPOSE 80
+# Make port 8000 available to the world outside this container
+EXPOSE 8000
 
-# Command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+# Run the FastMCP server
+CMD ["python", "app.py"]
