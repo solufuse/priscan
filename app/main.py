@@ -1,5 +1,5 @@
 from fastmcp import FastMCP
-import simulations
+from . import simulations
 
 mcp = FastMCP("Simulation Server")
 

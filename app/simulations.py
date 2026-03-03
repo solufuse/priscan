@@ -100,7 +100,7 @@ class PredictionMarketParticleFilter:
         # Initialize particles around prior
         logit_prior = logit(prior_prob)
         self.logit_particles = logit_prior + np.random.normal(0, 0.5, N_particles)
-        self.weights = np.ones(N_particles) / N_particles
+        self.weights = np.ones(N_particles) / self.N
         self.history = []
     
     def update(self, observed_price):
