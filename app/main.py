@@ -18,4 +18,4 @@ def simulate_binary_contract(S0: float, K: float, mu: float, sigma: float, T: fl
     return simulations.simulate_binary_contract(S0, K, mu, sigma, T)
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=8000)
+    mcp.run(transport="http", host="0.0.0.0", port=80)

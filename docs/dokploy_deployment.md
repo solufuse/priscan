@@ -6,7 +6,7 @@ This document provides the code and instructions to deploy a `FastMCP` server th
 
 Here are the files that make up the application:
 
-### `simulations.py`
+### `app/simulations.py`
 
 This file contains the Python code for the financial simulations.
 
@@ -19,13 +19,13 @@ from collections import deque
 # ... (simulation functions from the document) ...
 ```
 
-### `app.py`
+### `app/main.py`
 
 This is the main application file. It uses `FastMCP` to create a server and exposes the `simulate_binary_contract` function as a callable tool.
 
 ```python
 from fastmcp import FastMCP
-import simulations
+from . import simulations
 
 mcp = FastMCP("Simulation Server")
 
@@ -44,10 +44,10 @@ def simulate_binary_contract(S0: float, K: float, mu: float, sigma: float, T: fl
     return simulations.simulate_binary_contract(S0, K, mu, sigma, T)
 
 if __name__ == "__main__":
-    mcp.run(transport="http", port=8000)
+    mcp.run(transport="http", port=80)
 ```
 
-### `client.py`
+### `scripts/client.py`
 
 This script provides an example of how to connect to and interact with the deployed `FastMCP` server.
 
@@ -80,11 +80,11 @@ fastmcp
 
 ### `Dockerfile`
 
-This file contains the instructions for Docker to build a container image for the application. It sets up the Python environment, installs dependencies, and runs the `FastMCP` server on port 8000.
+This file contains the instructions for Docker to build a container image for the application. It sets up the Python environment, installs dependencies, and runs the `FastMCP` server on port 80.
 
 ```dockerfile
 # Use an official Python runtime as a parent image
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -98,18 +98,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Make port 8000 available to the world outside this container
-EXPOSE 8000
+# Make port 80 available to the world outside this container
+EXPOSE 80
 
 # Run the FastMCP server
-CMD ["python", "app.py"]
+CMD ["python", "app/main.py"]
 ```
 
 ## Deployment Instructions
 
 ### Step 1: Push Project to GitHub
 
-Push all the created files (`simulations.py`, `app.py`, `client.py`, `requirements.txt`, and `Dockerfile`) to a GitHub repository.
+Push all the created files (`app/main.py`, `app/simulations.py`, `scripts/client.py`, `docs/dokploy_deployment.md`, `requirements.txt`, and `Dockerfile`) to a GitHub repository.
 
 ```bash
 git init
@@ -127,8 +127,8 @@ git push -u origin main
 3.  **Configure the Build Settings:**
     *   Select the **"Use Dockerfile"** option. Dokploy will automatically detect it.
 4.  **Configure Network Settings:**
-    *   Dokploy will read the `EXPOSE 8000` command from your `Dockerfile`.
-    *   Ensure it maps an external port (like 80 or 443) to the container's internal port **8000**.
+    *   Dokploy will read the `EXPOSE 80` command from your `Dockerfile`.
+    *   Ensure it maps an external port (like 80 or 443) to the container's internal port **80**.
     *   **IMPORTANT**: You must also configure your custom domain (`price.solufuse.com`) in Dokploy to point to this application.
 5.  **Deploy** the application.
 
@@ -138,6 +138,6 @@ git push -u origin main
 2.  The script is already configured to connect to `https://price.solufuse.com/mcp`.
 3.  Run the client from your terminal:
     ```bash
-    python client.py
+    python scripts/client.py
     ```
     You should see the simulation results.
